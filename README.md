@@ -1,8 +1,8 @@
-#Introduction
+# Introduction
 
 This is a golang implementation of the Emerald Cloud Lab coding challange. 
 
-##Usage
+## Usage
 
 ``` 
 go run parser.go -f <input data file> -n <the highest N entries>
@@ -16,12 +16,6 @@ ofcourse if you would like to build the binary and relocate it to `/usr/local/bi
 
 ```
 go run parser.go -f data/score_recs.data -n 7
-```
-
-I have also included a Mac binary build
-
-```
-./emcloud -f data/score_recs.data -n 7
 ```
 
 ## Testing

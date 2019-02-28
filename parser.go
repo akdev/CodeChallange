@@ -135,8 +135,3 @@ func processRecord(record string) (entry, error) {
 	log.Println("score:", score, "id:", id)
 	return entry, nil
 }
-
-// - check for  whitespace only lines.
-// - validate Json
-// - check for line breaks.
-// - check for ID field.
