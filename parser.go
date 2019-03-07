@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -9,16 +10,49 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
 
-type entry struct {
+type Entry struct {
 	Score uint64 `json:"score"`
 	ID    string `json:"id"`
+	index int
+}
+type EntryHeap []*Entry
+
+func (h EntryHeap) Len() int           { return len(h) }
+func (h EntryHeap) Less(i, j int) bool { return h[i].Score > h[j].Score }
+func (h EntryHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+	h[i].index = i
+	h[j].index = j
+
+}
+func (h *EntryHeap) Push(x interface{}) {
+	n := len(*h)
+	entry := x.(Entry)
+	entry.index = n
+	*h = append(*h, &entry)
+	heap.Fix(h, n)
 }
 
+func (h *EntryHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	entry := old[n-1]
+	entry.index = -1
+	*h = old[0 : n-1]
+	return *entry
+}
+
+func (h *EntryHeap) HighestScores(n int) []Entry {
+	var highestScores []Entry
+	for i := 0; i < n; i++ {
+		highestScores = append(highestScores, heap.Pop(h).(Entry))
+	}
+	return highestScores
+}
 func main() {
 
 	fname := flag.String("f", "", "Data file name")
@@ -38,6 +72,15 @@ func main() {
 	os.Exit(HighestNScores(*fname, *n))
 }
 
+func outputHighestScores(highestScores []Entry) (int, error) {
+	output, err := json.MarshalIndent(highestScores, "", "  ")
+	if err != nil {
+		return 1, err
+	}
+	fmt.Fprintf(os.Stdout, "%s\n", output)
+	return 0, nil
+}
+
 func HighestNScores(fname string, n int) int {
 	entries, exitCode, err := processFile(fname, n)
 	if err != nil {
@@ -49,8 +92,8 @@ func HighestNScores(fname string, n int) int {
 		// if the file is small we will return the sorted entries instead of failing
 		n = len(entries)
 	}
-	entries = sortEntries(entries)
-	exitCode, err = outputHighestScores(entries, n)
+	highestScores := entries.HighestScores(n)
+	exitCode, err = outputHighestScores(highestScores)
 	if err != nil {
 		log.Println(err)
 		return exitCode
@@ -58,26 +101,9 @@ func HighestNScores(fname string, n int) int {
 	return 0
 }
 
-func outputHighestScores(entries []entry, n int) (int, error) {
-	highestScores := make([]entry, n)
-	copy(highestScores, entries[0:n])
-	output, err := json.MarshalIndent(highestScores, "", "  ")
-	if err != nil {
-		return 1, err
-	}
-	fmt.Fprintf(os.Stdout, "%s\n", output)
-	return 0, nil
-}
+func processFile(fname string, n int) (EntryHeap, int, error) {
+	var entries EntryHeap
 
-func sortEntries(entries []entry) []entry {
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Score > entries[j].Score
-	})
-	return entries
-}
-
-func processFile(fname string, n int) ([]entry, int, error) {
-	var entries []entry
 	log.Println("Processing Data file:", fname)
 	log.Println("n:", n)
 	file, err := os.Open(fname)
@@ -85,14 +111,13 @@ func processFile(fname string, n int) ([]entry, int, error) {
 		return entries, 1, err
 	}
 	defer file.Close()
-
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if entry, err := processRecord(scanner.Text()); err != nil {
 			return entries, 2, err
 		} else {
 			if entry.Score != 0 {
-				entries = append(entries, entry)
+				heap.Push(&entries, entry)
 			}
 		}
 	}
@@ -106,9 +131,9 @@ func processFile(fname string, n int) ([]entry, int, error) {
 	return entries, 0, nil
 }
 
-func processRecord(record string) (entry, error) {
+func processRecord(record string) (Entry, error) {
 	var dictionary map[string]interface{}
-	var entry entry
+	var entry Entry
 	if len(strings.TrimSpace(record)) == 0 {
 		entry.Score = 0
 		return entry, nil
