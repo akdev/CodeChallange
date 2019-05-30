@@ -1,6 +1,6 @@
 # Introduction
 
-This is a golang implementation of the Emerald Cloud Lab coding challange. 
+This is a golang implementation of the Emerald Cloud Lab [coding challange](challange.md). 
 
 ## Usage
 
